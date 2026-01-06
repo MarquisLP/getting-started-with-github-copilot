@@ -26,7 +26,7 @@ function displayActivities(activities) {
     card.className = 'activity-card';
     
     const participantsList = details.participants.length > 0
-      ? `<ul>${details.participants.map(email => `<li>${email}</li>`).join('')}</ul>`
+      ? `<ul>${details.participants.map(email => `<li><span>${email}</span><span class="delete-icon" data-activity="${name}" data-email="${email}" title="Remove participant">🗑️</span></li>`).join('')}</ul>`
       : '<p style="color: #999; font-style: italic;">No participants yet</p>';
     
     card.innerHTML = `
@@ -42,6 +42,15 @@ function displayActivities(activities) {
     
     container.appendChild(card);
   }
+  
+  // Add event listeners to all delete icons
+  document.querySelectorAll('.delete-icon').forEach(icon => {
+    icon.addEventListener('click', async (e) => {
+      const activityName = e.target.dataset.activity;
+      const email = e.target.dataset.email;
+      await unregisterParticipant(activityName, email);
+    });
+  });
 }
 
 function populateActivityDropdown(activities) {
@@ -100,4 +109,28 @@ function showMessage(text, type) {
   setTimeout(() => {
     messageDiv.classList.add('hidden');
   }, 5000);
+}
+
+async function unregisterParticipant(activityName, email) {
+  if (!confirm(`Are you sure you want to remove ${email} from ${activityName}?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      showMessage(data.message, 'success');
+      await loadActivities(); // Refresh the activities list
+    } else {
+      showMessage(data.detail || 'Failed to unregister', 'error');
+    }
+  } catch (error) {
+    console.error('Error unregistering participant:', error);
+    showMessage('An error occurred. Please try again.', 'error');
+  }
 }
